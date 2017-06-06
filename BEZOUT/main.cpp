@@ -1,0 +1,197 @@
+#include <iostream>
+#include <string>
+#include <cmath>
+#include <cctype>
+
+#include <gmpxx.h>
+
+using namespace std;
+
+mpz_class uPourRSA(mpz_class u, mpz_class b);
+
+int main(int argc, char **argv)
+{
+	int err = 0; //Valeur de retour à la fin du programme (0 == tout c'est bien passé ; 1 == des erreurs ont été rencontrées) 
+
+	string option; //Cet objet "string" contiendra l'option choisie par l'utilisateur.
+
+	if(argc == 2) // Si on a qu'un argument...
+		option = argv[1];
+
+	if(option == "-aide") //Si on demande l'aide
+	{
+			cout << "Usage : ./bezout -option a b (a et b, étant deux entiers venant de";
+				cout << "l'équation av - qu = 1, avec u et v, les valeurs cherchées)";
+
+			cout << "\tVoici les options possibles" << endl;
+			cout << "-u : affiche uniquement une valeur de u" << endl;
+			cout << "-v : affiche uniquement une valeur de v" << endl;
+			cout << "-rsa : affiche uniquement une valeur de u tel que 2 < u < b" << endl;
+			cout << "-aide : affiche cette aide" << endl;
+
+			cout << endl << "Par défault, (sans option), le programme affiche le PGCD, la valeur de u, puis de v" << endl;
+
+			cout << endl << "Pour toutes erreurs ou sugestions : tux79100@hotmail.fr" << endl;
+	}
+	
+	else if ((argc == 3) || argc == 4) //S'il y a les deux valeurs de a et b et/ou une option
+	{
+		mpz_class a, b, u, v, x, y, c, d, q, r;
+		mpz_class tmp_b, tmp_a; //Variables utilisées pour l'option "-rsa"
+
+		u = 1;
+		v = 0;
+		x = 0;
+		y = 1;
+
+		if (argc == 3) //Seulement les valeurs de a et b
+		{
+			//On vérifie qu'il s'agit bien de valeur numérique.
+			if((isdigit(argv[1][0])) && (isdigit(argv[2][0])))
+			{
+				a = argv[1];
+				b = argv[2];
+			}
+			else
+				err = 1;
+		}
+		else //argc == 4 (il y a donc une option)
+		{
+			option = argv[1];
+			
+			if((isdigit(argv[2][0])) && (isdigit(argv[3][0])))
+			{
+				a = argv[2];
+				b = argv[3];
+			}
+			else
+				err = 1;
+		}
+		
+		/* On conserve les valeurs de a et b, car cet algorithme est destructif. Les valeurs finales de a et b
+		 * seront différentes de celles du début.
+		 */
+
+		tmp_b = b;
+		tmp_a = a;
+
+		if(err == 0) //S'il n'y a pas d'erreur(s), on peut continuer.
+		{
+
+			while (b > 0)
+			{
+				r = a % b;
+				q = (a - r) / b;
+				c = u;
+				d = v;
+				u = x;
+				v = y;
+				x = c-q*x;
+				y = d-q*y;
+				a = b;
+				b = r;
+			}
+
+			if(option == "-PGCD")
+				cout << a << endl;
+			
+			else if(option == "-u")
+				if(a == 1)
+					cout << u << endl; 
+				else
+					cout << "a et b n'étant pas premiers, les valeurs de u et v ne peuvent être affichées" << endl;
+
+			else if(option == "-v")
+				if(a == 1)
+					cout << v << endl;
+				else
+					cout << "a et b n'étant pas premiers, les valeurs de u et v ne peuvent être affichées" << endl;
+			
+			else if(option == "-rsa")
+				if(a == 1)
+					cout << uPourRSA(u, tmp_b) << endl;
+				else
+				{
+					cout << "Pour utiliser l'option RSA, le U et V doivent être premiers.";
+					cout << " Ce n'est pas le cas ici. (PGCD(" << tmp_a << ", " << tmp_b << ") = " << a << ")" << endl;
+				}
+			
+			else //Pas d'option
+			{
+				cout << "PGCD = " << a << endl;
+
+				if(a == 1)
+				{
+					cout << "u = " << u << endl;
+					cout << "v = " << v << endl;
+				}
+				else
+					cout << "a et b n'étant pas premiers, les valeurs de u et v ne peuvent être affichées" << endl;
+			}
+		}
+		else
+			cout << "Erreur : vérifiez les arguments donnés au programme... (a et b doivent être des valeurs numériques !)" << endl;
+	}
+
+	else
+		cout << "usage : ./bezout -option a b (a et b venant de ad - bq = 1; avec d et q les valeurs cherchées)" << endl;
+
+	return err;
+}
+
+mpz_class uPourRSA(mpz_class u, mpz_class b)
+{
+	 /* Nous voulons 2 < u < b, pour les besoins de l'algorythme RSA...
+	 * donc si : u < 2 ou u > b, on modifie les valeurs de u, selon la règle suivante :
+	 * a.(u - k.(b/d)) + b.(v + k.(a/d)) = d   --- (on fait varier l'entier k, pour trouver les valeurs que l'on veut... )
+	 * dans notre cas, d = 1 ; d'où (a(u-kb) > 2) ET (a(u-kb) < b)
+	 */
+
+	if(u < 2)
+	{
+		mpz_class k;
+
+		/* Nous avons u < 2 ; nous voulons : 
+		 * (u - kb) > 2
+		 * éq. à : -kb > 2 - u
+		 * éq. à : k < (2 - u) / (-b)
+		 */
+
+		k = 2-u;
+		b = -b;
+
+		mpz_fdiv_q(k.get_mpz_t(), k.get_mpz_t(), b.get_mpz_t());
+		// k = (2.0-u) / (-b) ; (floor... (arrondi à l'entier inférieur))
+
+		b = -b;
+
+		u -= k*b; //On modifie la valeur de u...
+	}
+
+	if(u > b)
+	{
+		mpz_class k;
+
+		/* Nous avons u > b ; nous voulons :
+		 * (u - kb) > b
+		 * éq. à : -kb > b - u
+		 * éq. à : k < (b-u)/(-b)
+		 */
+		
+		k = b-u;
+		b = -b;
+
+		mpz_fdiv_q(k.get_mpz_t(), k.get_mpz_t(), b.get_mpz_t());
+		// k = (b-u) / (-b) ; (floor... (arrondi à l'entier inférieur))
+
+		b = -b;
+		u -= (k*b);
+	}
+
+	return u;
+}
+
+
+
+
+
