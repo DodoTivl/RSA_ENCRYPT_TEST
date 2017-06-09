@@ -1,4 +1,4 @@
-# Builds the Microule project.
+# Builds the RSA_OBJECT project.
 
 src=src
 objects=MAIN_RSA_OBJECT.o
